@@ -12,7 +12,7 @@ liegen in Row Level Security und Postgres-Funktionen.
 | Phase | Inhalt | Status |
 | --- | --- | --- |
 | 1 | Gerüst, Schema mit RLS, Seed, Login mit Beitrittscode, Teams, Wiedereinstieg | fertig |
-| 2 | Lobby, Countdown mit Serverzeit, Enthüllung | offen |
+| 2 | Lobby, Countdown mit Serverzeit, Enthüllung, Realtime | fertig |
 | 3 | Bauphase mit Timer, Stufen, Ticker, Twist | offen |
 | 4 | Abgabe mit Upload | offen (Serverlogik steht) |
 | 5 | Galerie und Voting | offen (Serverlogik steht) |
@@ -128,14 +128,39 @@ Phase 8) und das Zusammenspiel mit dem echten Supabase-Projekt.
 - **Sitzung.** Supabase Anonymous Sign-in, gespeichert im Browser. Der persönliche Link
   (`/r#<token>`) überträgt die Teilnahme samt Team und Stimmen auf ein anderes Gerät; der
   Token steht im URL-Fragment und erreicht damit keinen Server-Log.
-- **Aktualität.** Der Client lädt seinen Zustand alle 15 Sekunden, bei Rückkehr in den Tab
-  und bei wiederhergestellter Verbindung frisch. Realtime kommt in Phase 2 dazu.
+- **Serverzeit.** Beim Laden misst der Client per `server_time()` fünfmal den Versatz zur
+  Browseruhr (die Messung mit der kürzesten Laufzeit zählt) und justiert jede Minute, bei
+  Rückkehr in den Tab und bei wiederhergestellter Verbindung nach. Alle Countdowns und die
+  Phasenableitung rechnen mit dieser Zeit (`src/lib/server-clock.tsx`).
+- **Aktualität.** Ein Realtime-Kanal auf `event` und `participant` löst bei jeder Änderung ein
+  frisches Laden aus. Bricht er ab, wird mit Backoff (1, 2, 5, 10 s) neu verbunden und danach
+  frisch geladen. Unabhängig davon lädt der Client alle 15 Sekunden, bei Rückkehr in den Tab
+  und bei wiederhergestellter Verbindung. Der Punkt neben dem Logo zeigt den Realtime-Status.
+- **Enthüllung.** Die zehnsekündige Animation ist eine reine Funktion von
+  `Serverzeit − starts_at`: Alle Geräte zeigen dasselbe Bild, ein Reload setzt an der
+  richtigen Stelle fort. Wer später kommt, sieht eine Kurzfassung (2,4 s). Das Thema wird erst
+  ab `reveal_at` aus der Datenbank geholt; der **Titel von Stufe 1 ist das Thema**.
 
 Neue Funktionen in späteren Migrationen brauchen am Ende wieder:
 
 ```sql
 revoke execute on all functions in schema public from public, anon;
 grant execute on all functions in schema public to authenticated, service_role;
+```
+
+### Enthüllung ausprobieren
+
+Bis die Admin-Seite steht (Phase 6), im SQL-Editor:
+
+```sql
+-- Start in 2 Minuten, 3 Stunden Bauzeit, Twist nach 90 Minuten
+update public.event set
+  starts_at     = now() + interval '2 minutes',
+  build_ends_at = now() + interval '182 minutes',
+  twist_at      = now() + interval '92 minutes';
+
+-- Zurück in die Lobby
+update public.event set phase = 'lobby', starts_at = null, build_ends_at = null, twist_at = null;
 ```
 
 ## Checkliste für den Eventabend
@@ -156,7 +181,9 @@ Wird mit jeder Bauphase ergänzt.
 **Eine Stunde vorher**
 
 - [ ] Einladungslink mit `?code=` verschickt
-- [ ] Startzeit in `event.starts_at` stimmt (Zeitzone prüfen)
+- [ ] Startzeit in `event.starts_at` stimmt (Zeitzone prüfen), der Countdown in der Lobby
+      zeigt die erwartete Restzeit
+- [ ] Punkt neben dem Logo leuchtet grün (Realtime verbunden)
 - [ ] Supabase-Dashboard und SQL-Editor in einem Tab offen
 
 **Notfälle**

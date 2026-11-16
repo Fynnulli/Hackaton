@@ -4,7 +4,7 @@ import { toMessage } from "@/lib/errors";
 import { useSession } from "@/lib/session";
 import { JoinScreen } from "./join-screen";
 import { Button, Notice, Splash } from "./ui";
-import { WelcomeScreen } from "./welcome-screen";
+import { EventScreen } from "./event-screen";
 
 export function Home() {
   const { status, loadError, refresh } = useSession();
@@ -22,7 +22,7 @@ export function Home() {
     );
   }
   if (status === "guest") return <JoinScreen />;
-  return <WelcomeScreen />;
+  return <EventScreen />;
 }
 
 export function Unconfigured() {

@@ -11,9 +11,12 @@ import {
   type ReactNode,
 } from "react";
 import { getSupabase, isSupabaseConfigured } from "./supabase";
-import type { EventRow, Participant, Team } from "./types";
+import type { RealtimeChannel } from "@supabase/supabase-js";
+import type { EventRow, Participant, Team, TeamPublic } from "./types";
 
 const POLL_MS = 15_000;
+const REALTIME_DEBOUNCE_MS = 250;
+const RECONNECT_DELAYS_MS = [1_000, 2_000, 5_000, 10_000];
 const PARTICIPANT_COLS = "id, display_name, avatar, team_id, is_admin, joined_at";
 const EVENT_COLS = "id, join_code, phase, starts_at, build_ends_at, twist_at, wrapped_slide";
 
@@ -22,6 +25,10 @@ interface Snapshot {
   event: EventRow | null;
   team: Team | null;
   teammates: Participant[];
+  /** Alle Teilnehmer (Lobby: "X sind schon da"). */
+  roster: Participant[];
+  /** Alle Teams ohne Code. */
+  teams: TeamPublic[];
 }
 
 export type SessionStatus = "loading" | "unconfigured" | "guest" | "joined" | "error";
@@ -34,6 +41,10 @@ interface SessionValue {
   event: EventRow | null;
   team: Team | null;
   teammates: Participant[];
+  roster: Participant[];
+  teams: TeamPublic[];
+  /** Realtime-Verbindung steht (sonst laeuft nur das Polling). */
+  live: boolean;
   refresh: () => Promise<void>;
   join: (joinCode: string, displayName: string, avatar: string) => Promise<void>;
   claimReentryToken: (token: string) => Promise<void>;
@@ -53,35 +64,40 @@ async function fetchSnapshot(): Promise<Snapshot | null> {
   } = await sb.auth.getSession();
   if (!session) return null;
 
-  const [p, e] = await Promise.all([
+  const [p, e, r, ts] = await Promise.all([
     sb.from("participant").select(PARTICIPANT_COLS).eq("id", session.user.id).maybeSingle(),
     sb.from("event").select(EVENT_COLS).maybeSingle(),
+    sb.from("participant").select(PARTICIPANT_COLS).order("joined_at"),
+    sb.from("team").select("id, name, created_at").order("created_at"),
   ]);
   if (p.error) throw p.error;
   if (e.error) throw e.error;
+  if (r.error) throw r.error;
+  if (ts.error) throw ts.error;
   if (!p.data) return null;
 
   const participant = p.data as Participant;
+  const roster = (r.data ?? []) as Participant[];
+  const teams = (ts.data ?? []) as TeamPublic[];
   let team: Team | null = null;
   let teammates: Participant[] = [];
 
   if (participant.team_id) {
-    const [t, m] = await Promise.all([
-      sb.rpc("get_my_team"),
-      sb
-        .from("participant")
-        .select(PARTICIPANT_COLS)
-        .eq("team_id", participant.team_id)
-        .order("joined_at"),
-    ]);
+    const t = await sb.rpc("get_my_team");
     if (t.error) throw t.error;
-    if (m.error) throw m.error;
     const row = (Array.isArray(t.data) ? t.data[0] : t.data) as Team | null;
     team = row?.id ? row : null;
-    teammates = (m.data ?? []) as Participant[];
+    teammates = roster.filter((m) => m.team_id === participant.team_id);
   }
 
-  return { participant, event: (e.data as EventRow | null) ?? null, team, teammates };
+  return {
+    participant,
+    event: (e.data as EventRow | null) ?? null,
+    team,
+    teammates,
+    roster,
+    teams,
+  };
 }
 
 async function ensureAuthSession(forceNew = false) {
@@ -127,6 +143,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refresh = useCallback(() => load(false), [load]);
+  const live = useRealtime(status === "joined", load);
 
   useEffect(() => {
     if (!isSupabaseConfigured) return;
@@ -210,6 +227,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       event: snapshot?.event ?? null,
       team: snapshot?.team ?? null,
       teammates: snapshot?.teammates ?? [],
+      roster: snapshot?.roster ?? EMPTY,
+      teams: snapshot?.teams ?? EMPTY_TEAMS,
+      live,
       refresh,
       join,
       claimReentryToken,
@@ -222,6 +242,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       status,
       loadError,
       snapshot,
+      live,
       refresh,
       join,
       claimReentryToken,
@@ -233,6 +254,70 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
+}
+
+const EMPTY: Participant[] = [];
+const EMPTY_TEAMS: TeamPublic[] = [];
+
+/**
+ * Realtime als Ausloeser: Jede Aenderung an event oder participant laedt den Zustand frisch
+ * (entprellt). Die Payloads werden bewusst nicht ausgewertet. Bricht der Kanal ab, wird mit
+ * Backoff neu abonniert und danach frisch geladen; das Polling laeuft unabhaengig weiter.
+ */
+function useRealtime(enabled: boolean, load: (silent: boolean) => Promise<void>): boolean {
+  const [live, setLive] = useState(false);
+
+  useEffect(() => {
+    if (!enabled) return;
+    const sb = getSupabase();
+    let channel: RealtimeChannel | null = null;
+    let disposed = false;
+    let attempt = 0;
+    let debounce = 0;
+    let retry = 0;
+
+    const scheduleLoad = () => {
+      window.clearTimeout(debounce);
+      debounce = window.setTimeout(() => void load(true), REALTIME_DEBOUNCE_MS);
+    };
+
+    const connect = () => {
+      if (disposed) return;
+      const ch = sb
+        .channel(`event-state-${Date.now()}`)
+        .on("postgres_changes", { event: "*", schema: "public", table: "event" }, scheduleLoad)
+        .on("postgres_changes", { event: "*", schema: "public", table: "participant" }, scheduleLoad);
+      channel = ch;
+      ch.subscribe((state) => {
+        if (disposed || channel !== ch) return;
+        if (state === "SUBSCRIBED") {
+          attempt = 0;
+          setLive(true);
+          // Was waehrend der Unterbrechung passiert ist, nachholen.
+          scheduleLoad();
+        } else if (state === "CHANNEL_ERROR" || state === "TIMED_OUT" || state === "CLOSED") {
+          setLive(false);
+          channel = null;
+          void sb.removeChannel(ch);
+          const delay = RECONNECT_DELAYS_MS[Math.min(attempt, RECONNECT_DELAYS_MS.length - 1)];
+          attempt += 1;
+          window.clearTimeout(retry);
+          retry = window.setTimeout(connect, delay);
+        }
+      });
+    };
+
+    connect();
+    return () => {
+      disposed = true;
+      window.clearTimeout(debounce);
+      window.clearTimeout(retry);
+      if (channel) void sb.removeChannel(channel);
+      setLive(false);
+    };
+  }, [enabled, load]);
+
+  return live;
 }
 
 export function useSession(): SessionValue {

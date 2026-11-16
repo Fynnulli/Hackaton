@@ -32,3 +32,9 @@ export interface Team extends TeamPublic {
 }
 
 export const MAX_TEAM_SIZE = 3;
+
+export interface Stage {
+  stage_no: number;
+  title: string;
+  body: string;
+}
