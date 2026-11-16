@@ -24,7 +24,7 @@ const MESSAGES: Record<string, string> = {
   invalid_submission: "Diese Abgabe gibt es nicht.",
   cannot_vote_own_team: "Fürs eigene Team kannst du nicht stimmen.",
   already_voted: "Für diese Abgabe hast du schon gestimmt.",
-  no_votes_left: "Du hast alle drei Stimmen vergeben.",
+  no_votes_left: "Du hast alle drei Stimmen vergeben. Nimm eine zurück, um sie neu zu vergeben.",
   not_admin: "Das darf nur die Event-Leitung.",
 };
 

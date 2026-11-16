@@ -15,7 +15,7 @@ liegen in Row Level Security und Postgres-Funktionen.
 | 2 | Lobby, Countdown mit Serverzeit, Enthüllung, Realtime | fertig |
 | 3 | Bauphase mit Timer, Stufen, Ticker, Twist | fertig |
 | 4 | Abgabe mit Upload | fertig |
-| 5 | Galerie und Voting | offen (Serverlogik steht) |
+| 5 | Galerie und Voting | fertig |
 | 6 | Admin-Seite und Testmodus | offen (Serverlogik teilweise) |
 | 7 | Wrapped und Siegerehrung | offen |
 | 8 | Härtung: Lasttest, Reconnect, mobil | offen |
@@ -151,6 +151,11 @@ Phase 8) und das Zusammenspiel mit dem echten Supabase-Projekt.
   erst ab der Galerie auflistbar. Ungespeicherte Eingaben überstehen einen Reload, speichert
   ein Teammitglied parallel, bietet das Formular an, dessen Stand zu übernehmen. Zum Ende der
   Bauzeit wird das Formular zur Nur-Lese-Ansicht; verbindlich sperrt die Datenbank.
+- **Galerie.** In der Phase `gallery` sehen alle die nicht ausgeblendeten Abgaben, pro Person
+  zufällig, aber stabil gemischt (Seed = Teilnehmer-ID, ein Reload ändert nichts). Drei
+  Stimmen, eine pro Abgabe, keine fürs eigene Team, zurücknehmbar. Stimmen erscheinen sofort
+  und werden bei einem Fehler zurückgenommen; verbindlich zählt die Datenbank. Stände gibt es
+  erst im Wrapped. In `closed` dient dieselbe Ansicht ohne Abstimmung als Archiv.
 - **Ticker.** Durchsagen (`admin_post_announcement`) und automatische Ereignisse („Team X hat
   abgegeben“) kommen per eigenem Realtime-Kanal auf `announcement`, Polling als Rückfall.
 
@@ -174,6 +179,10 @@ update public.event set
 
 -- Durchsage in den Ticker (bis es in Phase 6 ein Formular gibt)
 insert into public.announcement (body, kind) values ('Noch 30 Minuten!', 'admin');
+
+-- Galerie öffnen bzw. Archiv (bis es in Phase 6 Knöpfe gibt)
+update public.event set phase = 'gallery';
+update public.event set phase = 'closed';
 
 -- Zurück in die Lobby
 update public.event set phase = 'lobby', starts_at = null, build_ends_at = null, twist_at = null;

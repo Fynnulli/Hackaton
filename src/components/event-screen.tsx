@@ -6,6 +6,7 @@ import { useServerNow, useServerOffset } from "@/lib/server-clock";
 import { useSession } from "@/lib/session";
 import { useStages } from "@/lib/use-stages";
 import { BuildView } from "./build/build-view";
+import { GalleryView } from "./gallery/gallery-view";
 import { Lobby } from "./lobby/lobby";
 import { Reveal } from "./reveal/reveal";
 import { AppHeader } from "./stage/app-header";
@@ -66,23 +67,17 @@ export function EventScreen() {
     return <BuildView event={event} stages={stages} nowMs={nowMs} />;
   }
 
-  // Galerie, Wrapped, Archiv folgen in spaeteren Phasen.
   const phase = screen.kind === "after" ? screen.phase : "lobby";
+  if (phase === "gallery" || phase === "closed") return <GalleryView phase={phase} />;
+
+  // Wrapped folgt in Phase 7.
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-5 pb-12 sm:px-8">
       <AppHeader phase={phase} />
       <main className="flex flex-1 flex-col justify-center gap-5">
         <p className="label text-neon">{PHASE_LABEL[phase]}</p>
-        <h1 className="display text-[clamp(3.5rem,13vw,10rem)]">
-          {phase === "gallery" ? "Abgabe zu." : phase === "wrapped" ? "Siegerehrung." : "Danke!"}
-        </h1>
-        <p className="max-w-xl text-xl text-muted">
-          {phase === "gallery"
-            ? "Die Galerie mit Abstimmung kommt in einer späteren Ausbaustufe."
-            : phase === "wrapped"
-              ? "Das Wrapped kommt in einer späteren Ausbaustufe."
-              : "Das Event ist beendet."}
-        </p>
+        <h1 className="display text-[clamp(3.5rem,13vw,10rem)]">Siegerehrung.</h1>
+        <p className="max-w-xl text-xl text-muted">Das Wrapped kommt in einer späteren Ausbaustufe.</p>
       </main>
     </div>
   );
