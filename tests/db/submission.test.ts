@@ -172,4 +172,20 @@ describe("Regeln der Abgabe", () => {
       /row-level security/,
     );
   });
+
+  test("fremde Screenshots sind erst ab der Galerie auflistbar", async () => {
+    await db.sql("delete from storage.objects");
+    await db.sql(
+      "insert into storage.objects (bucket_id, name) values ('screenshots', $1), ('screenshots', $2)",
+      [`${alpha.id}/a.webp`, `${beta.id}/b.webp`],
+    );
+    const list = (uid: string) =>
+      db.as<{ name: string }>(uid, "select name from storage.objects order by name");
+
+    expect(await list(beta.members[0])).toEqual([{ name: `${beta.id}/b.webp` }]);
+    expect(await list(admin)).toHaveLength(2);
+
+    await db.setPhase("gallery");
+    expect(await list(beta.members[0])).toHaveLength(2);
+  });
 });

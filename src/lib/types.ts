@@ -45,3 +45,20 @@ export interface Announcement {
   kind: "admin" | "system";
   created_at: string;
 }
+
+export interface Submission {
+  id: string;
+  team_id: string;
+  title: string;
+  url: string;
+  description: string;
+  screenshot_path: string | null;
+  stage1: boolean;
+  stage2: boolean;
+  stage3: boolean;
+  hidden: boolean;
+  submitted_at: string;
+  updated_at: string;
+}
+
+export const MAX_DESCRIPTION = 300;

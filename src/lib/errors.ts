@@ -46,6 +46,12 @@ export function toMessage(error: unknown): string {
   if (/rate limit|too many requests/i.test(raw)) {
     return "Gerade melden sich sehr viele an. Bitte versuch es in einer Minute noch einmal.";
   }
+  if (/exceeded the maximum allowed size|payload too large/i.test(raw)) {
+    return "Der Screenshot ist größer als 2 MB.";
+  }
+  if (/row-level security/i.test(raw)) {
+    return "Das ging nicht durch. Ist die Abgabe vielleicht schon geschlossen?";
+  }
   if (/failed to fetch|network|load failed/i.test(raw)) {
     return "Keine Verbindung. Bitte prüfe dein Netz und versuch es noch einmal.";
   }

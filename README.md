@@ -14,7 +14,7 @@ liegen in Row Level Security und Postgres-Funktionen.
 | 1 | Gerüst, Schema mit RLS, Seed, Login mit Beitrittscode, Teams, Wiedereinstieg | fertig |
 | 2 | Lobby, Countdown mit Serverzeit, Enthüllung, Realtime | fertig |
 | 3 | Bauphase mit Timer, Stufen, Ticker, Twist | fertig |
-| 4 | Abgabe mit Upload | offen (Serverlogik steht) |
+| 4 | Abgabe mit Upload | fertig |
 | 5 | Galerie und Voting | offen (Serverlogik steht) |
 | 6 | Admin-Seite und Testmodus | offen (Serverlogik teilweise) |
 | 7 | Wrapped und Siegerehrung | offen |
@@ -144,6 +144,13 @@ Phase 8) und das Zusammenspiel mit dem echten Supabase-Projekt.
   30 (gelb), 10 (orange) und 1 Minute (rot) Restzeit. Zum Twist-Zeitpunkt lädt der Client
   gezielt nach, Stufe 3 erscheint live mit kurzem Vollbild-Auftritt. Wer die Seite erst danach
   öffnet, sieht den Twist ohne Auftritt.
+- **Abgabe** (`/abgabe`). Titel, Link (ohne `https://` wird es ergänzt), Beschreibung bis
+  300 Zeichen, optionaler Screenshot und erreichte Stufen; Stufe 3 erst nach dem Twist.
+  Screenshots werden im Browser auf höchstens 1600 px verkleinert und als WebP hochgeladen
+  (Ziehen, Einfügen oder Auswählen), Pfad `<team_id>/<uuid>.webp`. Fremde Screenshots sind
+  erst ab der Galerie auflistbar. Ungespeicherte Eingaben überstehen einen Reload, speichert
+  ein Teammitglied parallel, bietet das Formular an, dessen Stand zu übernehmen. Zum Ende der
+  Bauzeit wird das Formular zur Nur-Lese-Ansicht; verbindlich sperrt die Datenbank.
 - **Ticker.** Durchsagen (`admin_post_announcement`) und automatische Ereignisse („Team X hat
   abgegeben“) kommen per eigenem Realtime-Kanal auf `announcement`, Polling als Rückfall.
 
