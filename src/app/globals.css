@@ -1,0 +1,94 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #07080a;
+  --color-surface: #0e1014;
+  --color-raised: #161920;
+  --color-line: #262a33;
+  --color-paper: #f2f3ee;
+  --color-muted: #8c919b;
+  --color-neon: #c8ff2e;
+  --color-danger: #ff5a4e;
+
+  --font-display: "Bricolage Grotesque Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Martian Mono Variable", ui-monospace, "SFMono-Regular", monospace;
+
+  --ease-stage: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+html {
+  background: var(--color-ink);
+  color-scheme: dark;
+}
+
+body {
+  background: var(--color-ink);
+  color: var(--color-paper);
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  background: var(--color-neon);
+  color: var(--color-ink);
+}
+
+/* Buehnenhintergrund: feines Raster, das nach unten ausblendet, plus ein Hauch Neon. */
+.stage {
+  position: relative;
+  isolation: isolate;
+}
+.stage::before,
+.stage::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+.stage::before {
+  background-image:
+    linear-gradient(to right, rgb(255 255 255 / 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(255 255 255 / 0.035) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, black 20%, transparent 75%);
+}
+.stage::after {
+  background: radial-gradient(
+    ellipse 60% 40% at 50% -10%,
+    color-mix(in srgb, var(--color-neon) 9%, transparent),
+    transparent 70%
+  );
+}
+
+/* Sehr grosse Schrift: schmal gesetzt, eng gefuehrt. */
+.display {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-stretch: 75%;
+  line-height: 0.86;
+  letter-spacing: -0.015em;
+  text-transform: uppercase;
+}
+
+.label {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.neon-glow {
+  text-shadow: 0 0 32px color-mix(in srgb, var(--color-neon) 45%, transparent);
+}
+
+@utility focus-ring {
+  outline: none;
+  &:focus-visible {
+    outline: 2px solid var(--color-neon);
+    outline-offset: 3px;
+  }
+}

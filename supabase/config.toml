@@ -1,0 +1,6 @@
+# Bewusst minimal: Alles Weitere bleibt bei den Einstellungen des Supabase-Projekts.
+project_id = "drei-stunden-build"
+
+[auth]
+# Die App meldet Teilnehmer ausschliesslich anonym an (Beitrittscode statt E-Mail).
+enable_anonymous_sign_ins = true
