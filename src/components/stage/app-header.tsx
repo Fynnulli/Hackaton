@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { PHASE_LABEL } from "@/lib/phase";
 import { useSession } from "@/lib/session";
 import type { EventPhase } from "@/lib/types";
@@ -24,6 +25,14 @@ export function AppHeader({ phase, right }: { phase: EventPhase; right?: React.R
       </div>
       <div className="flex min-w-0 items-center gap-3">
         {right}
+        {participant.is_admin ? (
+          <Link
+            href="/admin"
+            className="focus-ring label rounded-full border border-line px-3 py-1.5 text-paper hover:border-neon hover:text-neon"
+          >
+            Admin
+          </Link>
+        ) : null}
         <span className="flex min-w-0 items-center gap-2 rounded-full border border-line bg-surface py-1.5 pr-4 pl-2">
           <span className="text-xl" aria-hidden>
             {participant.avatar}

@@ -83,6 +83,19 @@ describe("Stimmenlimit", () => {
     await expect(vote(teams[0].members[0], subs[1])).rejects.toThrow(/invalid_submission/);
   });
 
+  test("blendet der Admin eine Abgabe aus, werden die Stimmen dafuer wieder frei", async () => {
+    const voter = teams[0].members[0];
+    await vote(voter, subs[1]);
+    await vote(voter, subs[2]);
+    await vote(voter, subs[3]);
+    await expect(vote(voter, subs[4])).rejects.toThrow(/no_votes_left/);
+
+    await db.rpc(admin, "admin_set_submission_hidden", { p_submission_id: subs[1], p_hidden: true });
+    const mine = await db.as(voter, "select submission_id from public.vote");
+    expect(mine).toHaveLength(2);
+    await expect(vote(voter, subs[4])).resolves.toBeTruthy();
+  });
+
   test("wer kein Team hat, kann nicht abstimmen (kein Stimmen-Farming ueber Neuanmeldungen)", async () => {
     const fresh = await db.joinUser();
     await expect(vote(fresh, subs[1])).rejects.toThrow(/no_team/);

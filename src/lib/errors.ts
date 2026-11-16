@@ -26,6 +26,9 @@ const MESSAGES: Record<string, string> = {
   already_voted: "Für diese Abgabe hast du schon gestimmt.",
   no_votes_left: "Du hast alle drei Stimmen vergeben. Nimm eine zurück, um sie neu zu vergeben.",
   not_admin: "Das darf nur die Event-Leitung.",
+  invalid_schedule: "Ungültiger Zeitplan: Bauzeit und Twist müssen größer als 0 sein, der Twist vor dem Ende.",
+  not_scheduled: "Es gibt noch keinen Zeitplan, der sich verlängern ließe.",
+  invalid_announcement: "Die Durchsage muss 1 bis 280 Zeichen lang sein.",
 };
 
 const FALLBACK = "Das hat nicht geklappt. Bitte versuch es noch einmal.";
