@@ -5,7 +5,7 @@ import { pickScreen, PHASE_LABEL } from "@/lib/phase";
 import { useServerNow, useServerOffset } from "@/lib/server-clock";
 import { useSession } from "@/lib/session";
 import { useStages } from "@/lib/use-stages";
-import { TopicView } from "./build/topic-view";
+import { BuildView } from "./build/build-view";
 import { Lobby } from "./lobby/lobby";
 import { Reveal } from "./reveal/reveal";
 import { AppHeader } from "./stage/app-header";
@@ -19,7 +19,12 @@ export function EventScreen() {
   const nowMs = useServerNow(250);
   const offset = useServerOffset();
   const screen = pickScreen(event, nowMs);
-  const stages = useStages(screen.kind !== "lobby");
+  // twist_at auf die Browseruhr umgerechnet, auf Sekunden gerundet (sonst startet das Laden
+  // bei jeder kleinen Nachjustierung des Versatzes neu).
+  const twistAtLocalMs = event?.twist_at
+    ? Math.round((Date.parse(event.twist_at) - offset) / 1000) * 1000
+    : null;
+  const stages = useStages(screen.kind !== "lobby", twistAtLocalMs);
 
   // Wer die volle Enthuellung (oder die Kurzfassung) in diesem Tab gesehen hat, bekommt
   // in der Bauphase keine weitere.
@@ -58,7 +63,7 @@ export function EventScreen() {
         />
       );
     }
-    return <TopicView event={event} stages={stages} nowMs={nowMs} />;
+    return <BuildView event={event} stages={stages} nowMs={nowMs} />;
   }
 
   // Galerie, Wrapped, Archiv folgen in spaeteren Phasen.

@@ -38,3 +38,10 @@ export interface Stage {
   title: string;
   body: string;
 }
+
+export interface Announcement {
+  id: string;
+  body: string;
+  kind: "admin" | "system";
+  created_at: string;
+}

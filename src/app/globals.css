@@ -9,6 +9,8 @@
   --color-muted: #8c919b;
   --color-neon: #c8ff2e;
   --color-danger: #ff5a4e;
+  --color-warn: #ffd23f;
+  --color-hot: #ff8a3d;
 
   --font-display: "Bricolage Grotesque Variable", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Martian Mono Variable", ui-monospace, "SFMono-Regular", monospace;
@@ -90,5 +92,27 @@ body {
   &:focus-visible {
     outline: 2px solid var(--color-neon);
     outline-offset: 3px;
+  }
+}
+
+/* Twist: kurzer Neon-Puls am Rand, wenn Stufe 3 live erscheint. */
+@keyframes twist-flash {
+  0%,
+  100% {
+    box-shadow: 0 0 60px -20px var(--color-neon);
+  }
+  20%,
+  60% {
+    box-shadow:
+      0 0 0 2px var(--color-neon),
+      0 0 90px -10px var(--color-neon);
+  }
+}
+.twist-flash {
+  animation: twist-flash 2.4s ease-out 2;
+}
+@media (prefers-reduced-motion: reduce) {
+  .twist-flash {
+    animation: none;
   }
 }

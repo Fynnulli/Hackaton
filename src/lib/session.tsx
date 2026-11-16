@@ -10,13 +10,11 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useRealtimeReload } from "./realtime";
 import { getSupabase, isSupabaseConfigured } from "./supabase";
-import type { RealtimeChannel } from "@supabase/supabase-js";
 import type { EventRow, Participant, Team, TeamPublic } from "./types";
 
 const POLL_MS = 15_000;
-const REALTIME_DEBOUNCE_MS = 250;
-const RECONNECT_DELAYS_MS = [1_000, 2_000, 5_000, 10_000];
 const PARTICIPANT_COLS = "id, display_name, avatar, team_id, is_admin, joined_at";
 const EVENT_COLS = "id, join_code, phase, starts_at, build_ends_at, twist_at, wrapped_slide";
 
@@ -143,7 +141,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refresh = useCallback(() => load(false), [load]);
-  const live = useRealtime(status === "joined", load);
+  const silentLoad = useCallback(() => void load(true), [load]);
+  const live = useRealtimeReload("event-state", SESSION_TABLES, silentLoad, status === "joined");
 
   useEffect(() => {
     if (!isSupabaseConfigured) return;
@@ -256,69 +255,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
 
+const SESSION_TABLES = ["event", "participant"] as const;
 const EMPTY: Participant[] = [];
 const EMPTY_TEAMS: TeamPublic[] = [];
-
-/**
- * Realtime als Ausloeser: Jede Aenderung an event oder participant laedt den Zustand frisch
- * (entprellt). Die Payloads werden bewusst nicht ausgewertet. Bricht der Kanal ab, wird mit
- * Backoff neu abonniert und danach frisch geladen; das Polling laeuft unabhaengig weiter.
- */
-function useRealtime(enabled: boolean, load: (silent: boolean) => Promise<void>): boolean {
-  const [live, setLive] = useState(false);
-
-  useEffect(() => {
-    if (!enabled) return;
-    const sb = getSupabase();
-    let channel: RealtimeChannel | null = null;
-    let disposed = false;
-    let attempt = 0;
-    let debounce = 0;
-    let retry = 0;
-
-    const scheduleLoad = () => {
-      window.clearTimeout(debounce);
-      debounce = window.setTimeout(() => void load(true), REALTIME_DEBOUNCE_MS);
-    };
-
-    const connect = () => {
-      if (disposed) return;
-      const ch = sb
-        .channel(`event-state-${Date.now()}`)
-        .on("postgres_changes", { event: "*", schema: "public", table: "event" }, scheduleLoad)
-        .on("postgres_changes", { event: "*", schema: "public", table: "participant" }, scheduleLoad);
-      channel = ch;
-      ch.subscribe((state) => {
-        if (disposed || channel !== ch) return;
-        if (state === "SUBSCRIBED") {
-          attempt = 0;
-          setLive(true);
-          // Was waehrend der Unterbrechung passiert ist, nachholen.
-          scheduleLoad();
-        } else if (state === "CHANNEL_ERROR" || state === "TIMED_OUT" || state === "CLOSED") {
-          setLive(false);
-          channel = null;
-          void sb.removeChannel(ch);
-          const delay = RECONNECT_DELAYS_MS[Math.min(attempt, RECONNECT_DELAYS_MS.length - 1)];
-          attempt += 1;
-          window.clearTimeout(retry);
-          retry = window.setTimeout(connect, delay);
-        }
-      });
-    };
-
-    connect();
-    return () => {
-      disposed = true;
-      window.clearTimeout(debounce);
-      window.clearTimeout(retry);
-      if (channel) void sb.removeChannel(channel);
-      setLive(false);
-    };
-  }, [enabled, load]);
-
-  return live;
-}
 
 export function useSession(): SessionValue {
   const value = useContext(SessionContext);

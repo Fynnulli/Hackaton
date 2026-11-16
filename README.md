@@ -13,7 +13,7 @@ liegen in Row Level Security und Postgres-Funktionen.
 | --- | --- | --- |
 | 1 | Gerüst, Schema mit RLS, Seed, Login mit Beitrittscode, Teams, Wiedereinstieg | fertig |
 | 2 | Lobby, Countdown mit Serverzeit, Enthüllung, Realtime | fertig |
-| 3 | Bauphase mit Timer, Stufen, Ticker, Twist | offen |
+| 3 | Bauphase mit Timer, Stufen, Ticker, Twist | fertig |
 | 4 | Abgabe mit Upload | offen (Serverlogik steht) |
 | 5 | Galerie und Voting | offen (Serverlogik steht) |
 | 6 | Admin-Seite und Testmodus | offen (Serverlogik teilweise) |
@@ -140,6 +140,12 @@ Phase 8) und das Zusammenspiel mit dem echten Supabase-Projekt.
   `Serverzeit − starts_at`: Alle Geräte zeigen dasselbe Bild, ein Reload setzt an der
   richtigen Stelle fort. Wer später kommt, sieht eine Kurzfassung (2,4 s). Das Thema wird erst
   ab `reveal_at` aus der Datenbank geholt; der **Titel von Stufe 1 ist das Thema**.
+- **Bauphase.** Der Timer steht immer sichtbar in der Kopfzeile und wechselt die Farbe bei
+  30 (gelb), 10 (orange) und 1 Minute (rot) Restzeit. Zum Twist-Zeitpunkt lädt der Client
+  gezielt nach, Stufe 3 erscheint live mit kurzem Vollbild-Auftritt. Wer die Seite erst danach
+  öffnet, sieht den Twist ohne Auftritt.
+- **Ticker.** Durchsagen (`admin_post_announcement`) und automatische Ereignisse („Team X hat
+  abgegeben“) kommen per eigenem Realtime-Kanal auf `announcement`, Polling als Rückfall.
 
 Neue Funktionen in späteren Migrationen brauchen am Ende wieder:
 
@@ -158,6 +164,9 @@ update public.event set
   starts_at     = now() + interval '2 minutes',
   build_ends_at = now() + interval '182 minutes',
   twist_at      = now() + interval '92 minutes';
+
+-- Durchsage in den Ticker (bis es in Phase 6 ein Formular gibt)
+insert into public.announcement (body, kind) values ('Noch 30 Minuten!', 'admin');
 
 -- Zurück in die Lobby
 update public.event set phase = 'lobby', starts_at = null, build_ends_at = null, twist_at = null;
