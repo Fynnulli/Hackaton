@@ -7,6 +7,10 @@ in derselben Sekunde enthüllt, drei Stunden bauen, abgeben, abstimmen, Wrapped.
 (Postgres, Auth, Realtime, Storage) · Vercel. Es gibt kein eigenes Backend: Alle Regeln
 liegen in Row Level Security und Postgres-Funktionen.
 
+**Live:** https://hackaton-eta-pied.vercel.app · **Wie läuft ein Abend ab?** →
+[docs/ablauf.md](docs/ablauf.md) (Vorbereitung, Phasen, Zeitachse, Rollen, Technik, Notfälle
+als Diagramme)
+
 ## Stand
 
 | Phase | Inhalt | Status |
