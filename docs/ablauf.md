@@ -29,7 +29,7 @@ flowchart TD
     end
 
     subgraph Vortag["Am Vortag"]
-        B1[Testdaten löschen] --> B2[Echtes Event anlegen:<br/>Code + Startzeit]
+        B1[Testdaten löschen] --> B2[Event umstellen:<br/>Code + Zeiten]
         B2 --> B3[Thema und Twist<br/>im SQL-Editor eintragen]
         B3 --> B4[Selbst beitreten,<br/>per SQL zum Admin machen]
         B4 --> B5[Admin-Link auf zweitem<br/>Gerät sichern]
@@ -48,25 +48,9 @@ flowchart TD
 sind per Row Level Security erst ab ihrer Freigabezeit lesbar. Stünde das Thema im Code, im
 Repository oder in einer Nachricht, wäre es vorher auffindbar.
 
-Das echte Event legst du im SQL-Editor so an (Werte anpassen):
-
-```sql
--- Vorher alle Testdaten löschen (siehe README) und die Platzhalter-Stufen entfernen:
-delete from public.challenge_stage where true;
-delete from public.event where true;
-
-insert into public.event (join_code, starts_at, build_ends_at, twist_at) values (
-  'DEINCODE',
-  '2026-12-01 19:00:00+01',   -- Start
-  '2026-12-01 22:00:00+01',   -- Ende der Bauzeit (Start + 3 h)
-  '2026-12-01 20:30:00+01'    -- Twist (Minute 90)
-);
-
-insert into public.challenge_stage (stage_no, title, body) values
-  (1, 'Das Thema als Titel', 'Die Grundaufgabe'),
-  (2, 'Titel Stufe 2',       'Die Erweiterung'),
-  (3, 'Titel des Twists',    'Der Twist');
-```
+Das echte Event stellst du im SQL-Editor um: Es gibt immer genau ein Event, es wird nicht
+neu angelegt. Den geprüften SQL-Block (Testdaten löschen, Event umstellen, Thema eintragen)
+findest du in der [README unter „Vom Test zum echten Abend“](../README.md#vom-test-zum-echten-abend).
 
 Der **Titel von Stufe 1 ist das Thema**, das bei der Enthüllung groß erscheint.
 

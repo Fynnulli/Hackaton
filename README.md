@@ -11,6 +11,31 @@ liegen in Row Level Security und Postgres-Funktionen.
 [docs/ablauf.md](docs/ablauf.md) (Vorbereitung, Phasen, Zeitachse, Rollen, Technik, Notfälle
 als Diagramme)
 
+## Übergabe (Stand 17.11.2026)
+
+- **Alle 8 Bauphasen sind fertig**, getestet (100 automatische Tests, Lasttest mit 60 Clients) und auf `main` gepusht. Jeder Push
+  auf `main` deployt automatisch nach https://hackaton-eta-pied.vercel.app.
+- **Supabase-Projekt** `pnarriafiaoriddujmzs`: Alle Migrationen aus `supabase/migrations/`
+  sind eingespielt, anonyme Anmeldung ist an, Rate-Limit für anonyme Anmeldungen steht auf 200.
+- **Datenbank ist zurückgesetzt:** ein Event mit Code `TEST42` in der Lobby ohne Startzeit,
+  Platzhalter-Stufen, ein Teilnehmer „Fynn Ulrich“ (Admin), keine Teams, Abgaben, Stimmen.
+  Im Storage liegt noch eine verwaiste Test-Screenshot-Datei (harmlos, im Dashboard löschbar).
+- **Was vor dem echten Abend fehlt:** echtes Event mit Code, Zeiten und Thema einrichten
+  (Abschnitt „Vom Test zum echten Abend“), Checkliste unten abarbeiten.
+
+**Für einen neuen Chat oder Mitwirkende:** Ablauf und Rollen stehen in
+[docs/ablauf.md](docs/ablauf.md). Wichtige Fallstricke:
+
+- Next.js ist Version 16 mit Cache Components: Lies `AGENTS.md` und die Doku unter
+  `node_modules/next/dist/docs/`. Client-Komponenten, die die Uhrzeit lesen, dürfen erst nach
+  dem Laden der Sitzung rendern, sonst bricht der Prerender (`Date.now()`-Fehler).
+- Supabase lehnt bei API-Aufrufen `UPDATE`/`DELETE` ohne `WHERE` ab (`pg-safeupdate`); die
+  lokalen Tests sehen das nicht, `tests/db/safeupdate.test.ts` prüft es.
+- Neue Migrationen werden direkt auf das Projekt angewendet (Supabase-MCP oder SQL-Editor).
+  Der Dateiname in `supabase/migrations/` muss der dort vergebenen Version entsprechen.
+  Neue Funktionen brauchen am Ende wieder `revoke`/`grant` (siehe unten).
+- Das echte Thema gehört nie ins Repository und nicht in einen Chat.
+
 ## Stand
 
 | Phase | Inhalt | Status |
@@ -55,9 +80,10 @@ nirgends gebraucht und gehört nicht in dieses Projekt.
 
 ### Supabase einrichten
 
-1. **Migration einspielen.** Die Migrationen liegen in `supabase/migrations/` und werden über
-   die GitHub-Integration von Supabase übernommen. Alternativ den Inhalt der Datei im
-   SQL-Editor ausführen.
+1. **Migrationen einspielen** (für das bestehende Projekt erledigt). Die Dateien in
+   `supabase/migrations/` der Reihe nach im SQL-Editor ausführen oder per Supabase-CLI/MCP
+   anwenden. Eine GitHub-Integration ist nicht eingerichtet. `supabase/config.toml` setzt nur
+   `enable_anonymous_sign_ins = true` für lokale Entwicklung.
 2. **Anonyme Anmeldung aktivieren:** *Authentication → Sign In / Providers → Allow anonymous
    sign-ins*. Ohne diesen Schalter kann niemand beitreten.
 3. **Rate-Limit anheben:** *Authentication → Rate Limits → Anonymous sign-ins*. Der Standard
@@ -70,30 +96,59 @@ nirgends gebraucht und gehört nicht in dieses Projekt.
    update public.participant set is_admin = true where display_name = 'DEIN NAME';
    ```
 
-### Event anlegen
+### Vom Test zum echten Abend
 
-Zum Ausprobieren genügt `supabase/seed.sql` (Beitrittscode `TEST42`, Platzhalter-Thema):
-Inhalt in den SQL-Editor kopieren und ausführen.
-
-Für den echten Abend das Event direkt im SQL-Editor anlegen. **Das echte Thema gehört nie
-ins Repository**, sonst ist es vor dem Start auffindbar.
+Es gibt immer genau **ein** Event (eine Zeile in `event`); es wird umgestellt, nicht neu
+angelegt. Im SQL-Editor, Werte anpassen (geprüft gegen die Migrationen):
 
 ```sql
-insert into public.event (join_code, starts_at, build_ends_at, twist_at) values (
-  'DEINCODE',                      -- 4 bis 12 Zeichen, Großbuchstaben und Ziffern
-  '2026-12-01 19:00:00+01',        -- Start
-  '2026-12-01 22:00:00+01',        -- Ende der Bauzeit
-  '2026-12-01 20:30:00+01'         -- Twist (Minute 90)
-);
+-- 1. Testdaten löschen; Admin-Konten bleiben erhalten
+delete from public.vote where true;
+delete from public.submission where true;
+delete from public.announcement where true;
+update public.participant set team_id = null where true;
+delete from public.team where true;
+delete from auth.users where id in (select id from public.participant where not is_admin);
 
+-- 2. Event umstellen (Code: 4–12 Zeichen, Großbuchstaben/Ziffern; Zeitzone beachten,
+--    im Winter +01, im Sommer +02)
+update public.event set
+  join_code     = 'DEINCODE',
+  phase         = 'lobby',
+  starts_at     = '2026-12-01 19:00:00+01',
+  build_ends_at = '2026-12-01 22:00:00+01',   -- Start + 3 Stunden
+  twist_at      = '2026-12-01 20:30:00+01',   -- Minute 90
+  wrapped_slide = 0
+where true;
+
+-- 3. Thema eintragen (erst nach Schritt 2: die Freigabezeiten kommen aus dem Event)
+delete from public.challenge_stage where true;
 insert into public.challenge_stage (stage_no, title, body) values
-  (1, 'Titel Stufe 1', 'Text Stufe 1'),
-  (2, 'Titel Stufe 2', 'Text Stufe 2'),
-  (3, 'Titel Twist',   'Text Twist');
+  (1, 'DAS THEMA',      'Grundaufgabe'),   -- Titel von Stufe 1 = Thema der Enthüllung
+  (2, 'Titel Stufe 2',  'Erweiterung'),
+  (3, 'Titel Twist',    'Der Twist');
 ```
 
-Es kann immer nur ein Event geben. Einladungslink für Teilnehmer:
-`https://DEINE-DOMAIN/?code=DEINCODE`.
+Danach: Event-Daten auf `/admin` unter „Stand“ prüfen. Das Thema ist bis `starts_at` für
+niemanden lesbar, auch nicht für Admins; zum Prüfen also nur im SQL-Editor ansehen.
+Einladungslink: `https://hackaton-eta-pied.vercel.app/?code=DEINCODE`.
+
+Neues, leeres Supabase-Projekt: nach den Migrationen einmal `supabase/seed.sql` ausführen
+(legt das Event `TEST42` mit Platzhalter-Stufen an), danach wie oben umstellen.
+
+Weitere Admins: beitreten lassen, dann
+`update public.participant set is_admin = true where display_name = 'NAME';`
+
+## Deployment (Vercel)
+
+- Projekt `hackaton` im Vercel-Team `bookshelf2`, verbunden mit diesem GitHub-Repo; jeder
+  Push auf `main` deployt automatisch.
+- Öffentliche Adresse: **https://hackaton-eta-pied.vercel.app**. Die Adresse
+  `hackaton-bookshelf2.vercel.app` ist durch Vercels Deployment-Schutz gesperrt, nicht
+  weitergeben.
+- Umgebungsvariablen in Vercel: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+- Hobby-Plan nur für nicht kommerzielle Nutzung; für ein Firmen-Event den Pro-Plan nehmen.
+- Der Debug-Zugriff `window.__dsb` (für Abbruch-Tests) ist im Produktions-Build nicht enthalten.
 
 ## Tests
 
@@ -111,11 +166,16 @@ nötig) und prüfen die kritischen Regeln so, wie ein angemeldeter Client sie er
 - **Stimmenlimit** (`tests/db/voting.test.ts`): drei Stimmen, eine pro Abgabe, keine fürs
   eigene Team, Stände erst im Wrapped.
 - **Beitritt, Teams, Wiedereinstieg** (`tests/db/join.test.ts`).
+- **Ticker, Admin-Funktionen** (`tests/db/announcement.test.ts`, `tests/db/admin.test.ts`).
+- **pg-safeupdate** (`tests/db/safeupdate.test.ts`): keine Funktion mit `UPDATE`/`DELETE`
+  ohne `WHERE`.
+- **Reine Logik** (`tests/unit/`): Serverzeit-Versatz, Bildschirmwahl, Timerfarben,
+  Formularprüfung, Galerie-Mischung, Wrapped-Auswertung.
 
 Weitere Prüfungen: `npm run typecheck`, `npm run lint`, `npm run build`.
 
-Nicht abgedeckt: gleichzeitige Zugriffe (die Sperren dafür sind im SQL, ein Lasttest folgt in
-Phase 8) und das Zusammenspiel mit dem echten Supabase-Projekt.
+Gleichzeitige Zugriffe und das Zusammenspiel mit dem echten Projekt prüft der Lasttest
+(Abschnitt „Lasttest / Generalprobe“).
 
 ## Architektur in Kürze
 
@@ -242,7 +302,8 @@ Wird mit jeder Bauphase ergänzt.
       vorhanden)
 - [ ] Anonyme Anmeldung ist aktiv, Rate-Limit ist angehoben
 - [ ] Umgebungsvariablen in Vercel gesetzt, aktueller Stand ist deployt
-- [ ] Testdaten entfernt, echtes Event mit richtigem Code und richtigen Zeiten angelegt
+- [ ] Testdaten entfernt, Event mit richtigem Code, Zeiten und Thema umgestellt (Abschnitt
+      „Vom Test zum echten Abend“)
 - [ ] Thema und Twist stehen in `challenge_stage` (und nirgends sonst)
 - [ ] Admin-Konto ist gesetzt und auf einem zweiten Gerät per persönlichem Link erreichbar
 - [ ] Einmal mit einem privaten Browserfenster beitreten, Team gründen, wieder löschen
