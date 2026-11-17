@@ -1,15 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { pickScreen, PHASE_LABEL } from "@/lib/phase";
+import { pickScreen } from "@/lib/phase";
 import { useServerNow, useServerOffset } from "@/lib/server-clock";
 import { useSession } from "@/lib/session";
 import { useStages } from "@/lib/use-stages";
 import { BuildView } from "./build/build-view";
 import { GalleryView } from "./gallery/gallery-view";
+import { WrappedView } from "./wrapped/wrapped-view";
 import { Lobby } from "./lobby/lobby";
 import { Reveal } from "./reveal/reveal";
-import { AppHeader } from "./stage/app-header";
 import { REVEAL_MS } from "@/lib/phase";
 
 const SHORT_REVEAL_MS = 2_400;
@@ -69,16 +69,6 @@ export function EventScreen() {
 
   const phase = screen.kind === "after" ? screen.phase : "lobby";
   if (phase === "gallery" || phase === "closed") return <GalleryView phase={phase} />;
-
-  // Wrapped folgt in Phase 7.
-  return (
-    <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-5 pb-12 sm:px-8">
-      <AppHeader phase={phase} />
-      <main className="flex flex-1 flex-col justify-center gap-5">
-        <p className="label text-neon">{PHASE_LABEL[phase]}</p>
-        <h1 className="display text-[clamp(3.5rem,13vw,10rem)]">Siegerehrung.</h1>
-        <p className="max-w-xl text-xl text-muted">Das Wrapped kommt in einer späteren Ausbaustufe.</p>
-      </main>
-    </div>
-  );
+  if (event) return <WrappedView event={event} />;
+  return null;
 }

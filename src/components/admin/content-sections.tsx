@@ -5,6 +5,7 @@ import { toMessage } from "@/lib/errors";
 import { EMPTY_DRAFT, normalizeUrl, validateDraft, type Draft } from "@/lib/submission-form";
 import type { EventRow, Submission, TeamPublic } from "@/lib/types";
 import type { LeaderRow } from "@/lib/use-admin-data";
+import { SLIDES } from "@/lib/wrapped";
 import { Button, TextField } from "../ui";
 import { ConfirmButton, FeedbackLine, Section, TIME, useAdminAction } from "./admin-kit";
 
@@ -275,7 +276,8 @@ export function BackfillSection({
 
 export function WrappedSection({ event, refresh }: { event: EventRow; refresh: () => unknown }) {
   const { busy, feedback, run } = useAdminAction(refresh);
-  const slide = event.wrapped_slide;
+  const slide = Math.min(event.wrapped_slide, SLIDES.length - 1);
+  const last = SLIDES.length - 1;
   const go = (n: number, key: string) =>
     void run(key, "admin_set_wrapped_slide", { p_slide: n }, `Folie ${n + 1}`);
 
@@ -285,15 +287,24 @@ export function WrappedSection({ event, refresh }: { event: EventRow; refresh: (
         <Button variant="ghost" onClick={() => go(Math.max(0, slide - 1), "prev")} busy={busy === "prev"} disabled={slide === 0}>
           ← Zurück
         </Button>
-        <p className="display min-w-24 text-center text-5xl tabular-nums">{slide + 1}</p>
-        <Button onClick={() => go(slide + 1, "next")} busy={busy === "next"}>
-          Weiter →
+        <div className="min-w-32 text-center">
+          <p className="display text-5xl tabular-nums">
+            {slide + 1}
+            <span className="text-2xl text-muted">/{SLIDES.length}</span>
+          </p>
+          <p className="label mt-1">{SLIDES[slide].label}</p>
+        </div>
+        <Button onClick={() => go(slide + 1, "next")} busy={busy === "next"} disabled={slide >= last}>
+          {slide < last ? `${SLIDES[slide + 1].label} →` : "Ende"}
         </Button>
         <ConfirmButton busy={busy === "reset"} disabled={slide === 0} onConfirm={() => go(0, "reset")}>
           Auf Anfang
         </ConfirmButton>
       </div>
-      <p className="text-sm text-muted">Alle Bildschirme springen synchron auf die Folie.</p>
+      <p className="text-sm text-muted">
+        Alle Bildschirme springen synchron auf die Folie. Im Wrapped selbst kannst du auch mit
+        Pfeiltasten oder Leertaste weiterschalten.
+      </p>
       <FeedbackLine feedback={feedback} />
     </Section>
   );

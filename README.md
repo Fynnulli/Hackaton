@@ -17,7 +17,7 @@ liegen in Row Level Security und Postgres-Funktionen.
 | 4 | Abgabe mit Upload | fertig |
 | 5 | Galerie und Voting | fertig |
 | 6 | Admin-Seite und Testmodus | fertig |
-| 7 | Wrapped und Siegerehrung | offen |
+| 7 | Wrapped und Siegerehrung | fertig |
 | 8 | Härtung: Lasttest, Reconnect, mobil | offen |
 
 ## Setup
@@ -156,6 +156,12 @@ Phase 8) und das Zusammenspiel mit dem echten Supabase-Projekt.
   Stimmen, eine pro Abgabe, keine fürs eigene Team, zurücknehmbar. Stimmen erscheinen sofort
   und werden bei einem Fehler zurückgenommen; verbindlich zählt die Datenbank. Stände gibt es
   erst im Wrapped. In `closed` dient dieselbe Ansicht ohne Abstimmung als Archiv.
+- **Wrapped.** Neun Folien im Vollbild: Intro, Zahlen, schnellste Abgabe, letzte Sekunde
+  (letzte Speicherung vor dem Ende), Stufen-Verteilung, Platz 3, 2, 1 (mit Konfetti), dann
+  die persönliche Karte jeder Person (Team, Platz, Punkte, erhaltene Stimmen, Stufen). Die
+  Folie bestimmt allein `event.wrapped_slide`; Admins schalten auf `/admin` oder direkt im
+  Wrapped mit Pfeiltasten/Leertaste, alle Geräte folgen per Realtime. Auswertung in
+  `src/lib/wrapped.ts`, Wertung aus `get_leaderboard()`.
 - **Ticker.** Durchsagen (`admin_post_announcement`) und automatische Ereignisse („Team X hat
   abgegeben“) kommen per eigenem Realtime-Kanal auf `announcement`, Polling als Rückfall.
 
