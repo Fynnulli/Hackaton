@@ -9,6 +9,7 @@ import { Wordmark } from "../ui";
 export function AppHeader({ phase, right }: { phase: EventPhase; right?: React.ReactNode }) {
   const { participant, live } = useSession();
   if (!participant) return null;
+  const crowded = Boolean(right) || participant.is_admin;
   return (
     <header className="flex h-16 items-center justify-between gap-4">
       <div className="flex items-center gap-4">
@@ -33,11 +34,19 @@ export function AppHeader({ phase, right }: { phase: EventPhase; right?: React.R
             Admin
           </Link>
         ) : null}
-        <span className="flex min-w-0 items-center gap-2 rounded-full border border-line bg-surface py-1.5 pr-4 pl-2">
+        <span
+          className={`flex min-w-0 items-center gap-2 rounded-full border border-line bg-surface py-1.5 pl-2 ${
+            crowded ? "pr-2 sm:pr-4" : "pr-4"
+          }`}
+          title={participant.display_name}
+        >
           <span className="text-xl" aria-hidden>
             {participant.avatar}
           </span>
-          <span className="truncate text-sm font-medium">{participant.display_name}</span>
+          {/* Auf schmalen Bildschirmen mit voller Kopfzeile nur der Avatar. */}
+          <span className={`truncate text-sm font-medium ${crowded ? "sr-only sm:not-sr-only" : ""}`}>
+            {participant.display_name}
+          </span>
         </span>
       </div>
     </header>

@@ -19,5 +19,9 @@ export function getSupabase(): SupabaseClient {
       storageKey: "dsb-auth",
     },
   });
+  // Nur in der Entwicklung: fuer Abbruch-Tests im Browser (window.__dsb.realtime.disconnect()).
+  if (process.env.NODE_ENV !== "production" && typeof window !== "undefined") {
+    (window as unknown as { __dsb?: SupabaseClient }).__dsb = client;
+  }
   return client;
 }
