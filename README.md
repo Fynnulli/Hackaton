@@ -16,7 +16,7 @@ liegen in Row Level Security und Postgres-Funktionen.
 | 3 | Bauphase mit Timer, Stufen, Ticker, Twist | fertig |
 | 4 | Abgabe mit Upload | fertig |
 | 5 | Galerie und Voting | fertig |
-| 6 | Admin-Seite und Testmodus | offen (Serverlogik teilweise) |
+| 6 | Admin-Seite und Testmodus | fertig |
 | 7 | Wrapped und Siegerehrung | offen |
 | 8 | Härtung: Lasttest, Reconnect, mobil | offen |
 
@@ -166,27 +166,28 @@ revoke execute on all functions in schema public from public, anon;
 grant execute on all functions in schema public to authenticated, service_role;
 ```
 
-### Enthüllung ausprobieren
+### Admin-Seite (`/admin`)
 
-Bis die Admin-Seite steht (Phase 6), im SQL-Editor:
+Nur für Teilnehmende mit `is_admin` (siehe „Admin setzen“); in der Kopfzeile erscheint dann
+ein Link „Admin“. Alle Aktionen laufen über die Admin-RPCs, die Datenbank prüft die Rechte.
 
-```sql
--- Start in 2 Minuten, 3 Stunden Bauzeit, Twist nach 90 Minuten
-update public.event set
-  starts_at     = now() + interval '2 minutes',
-  build_ends_at = now() + interval '182 minutes',
-  twist_at      = now() + interval '92 minutes';
+- **Stand:** Phase, Serverzeit, Zeitplan, Beitrittscode, Zähler.
+- **Phase:** Knöpfe für alle fünf Phasen, jeweils mit Bestätigung (zweimal klicken).
+  „Bauphase“ startet sofort, falls keine Startzeit gesetzt ist; „Lobby“ setzt eine bereits
+  erreichte Startzeit zurück.
+- **Zeitplan:** Start, Bauzeit, Twist-Minute; Schnellstart in 1, 5 oder 10 Minuten.
+- **Bauzeit verlängern:** +5, +10, +15 Minuten (öffnet die Abgabe auch wieder).
+- **Durchsage:** frei oder als Vorlage, erscheint sofort im Ticker.
+- **Abgaben:** Liste mit Platz, Stimmen und Punkten (nur für Admins vorab sichtbar).
+  Ausblenden nimmt eine Abgabe aus Galerie und Wertung und gibt die Stimmen dafür frei.
+- **Abgabe nachtragen:** für ein Team, ohne Zeitsperre.
+- **Wrapped:** Folien vor und zurück, alle Bildschirme folgen synchron.
+- **Testmodus:** Lobby, Start in 30 Sekunden, kurze Bauzeit, Twist zur Hälfte. Teilnehmer,
+  Teams, Abgaben und Stimmen bleiben erhalten.
 
--- Durchsage in den Ticker (bis es in Phase 6 ein Formular gibt)
-insert into public.announcement (body, kind) values ('Noch 30 Minuten!', 'admin');
-
--- Galerie öffnen bzw. Archiv (bis es in Phase 6 Knöpfe gibt)
-update public.event set phase = 'gallery';
-update public.event set phase = 'closed';
-
--- Zurück in die Lobby
-update public.event set phase = 'lobby', starts_at = null, build_ends_at = null, twist_at = null;
-```
+**Wichtig für neue Migrationen:** Supabase lehnt bei API-Aufrufen jedes `UPDATE`/`DELETE`
+ohne `WHERE` ab (`pg-safeupdate`). Auch bei der einen Event-Zeile deshalb `where true` bzw.
+`where id = …` schreiben. `tests/db/safeupdate.test.ts` prüft das für alle Funktionen.
 
 ## Checkliste für den Eventabend
 
@@ -202,6 +203,7 @@ Wird mit jeder Bauphase ergänzt.
 - [ ] Thema und Twist stehen in `challenge_stage` (und nirgends sonst)
 - [ ] Admin-Konto ist gesetzt und auf einem zweiten Gerät per persönlichem Link erreichbar
 - [ ] Einmal mit einem privaten Browserfenster beitreten, Team gründen, wieder löschen
+- [ ] Einen Testlauf über den Testmodus auf `/admin` durchspielen, danach Testdaten löschen
 
 **Eine Stunde vorher**
 
@@ -209,11 +211,11 @@ Wird mit jeder Bauphase ergänzt.
 - [ ] Startzeit in `event.starts_at` stimmt (Zeitzone prüfen), der Countdown in der Lobby
       zeigt die erwartete Restzeit
 - [ ] Punkt neben dem Logo leuchtet grün (Realtime verbunden)
-- [ ] Supabase-Dashboard und SQL-Editor in einem Tab offen
+- [ ] `/admin` auf dem Leitungsgerät offen, Supabase-Dashboard und SQL-Editor als Rückfall
 
 **Notfälle**
 
 - Jemand kommt nicht mehr rein: neu beitreten lassen. Falls die Person schon in einem Team
   war, im SQL-Editor `update public.participant set team_id = '<team>' where id = '<neu>'`.
-- Bauzeit verlängern (bis es in Phase 6 einen Knopf gibt), im SQL-Editor:
-  `update public.event set build_ends_at = build_ends_at + interval '10 minutes';`
+- Bauzeit verlängern: auf `/admin` unter „Bauzeit verlängern“. Fällt die Admin-Seite aus,
+  im SQL-Editor: `update public.event set build_ends_at = build_ends_at + interval '10 minutes';`
