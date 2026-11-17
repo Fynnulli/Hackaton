@@ -220,7 +220,8 @@ Ergebnis mit 60 Clients (17.11.2026, Free-Projekt, ein Rechner):
 Stimmenlimit gehalten (180 neue Stimmen bei 60 Personen), Geheimhaltung gehalten (Thema vor
 dem Start und Twist vor `twist_at` nicht lesbar). Befund: Direkt nach dem Verbinden stellt
 Realtime unter Last noch nicht alle Änderungen zu; die App lädt deshalb 3 Sekunden nach dem
-Verbinden noch einmal frisch nach (`src/lib/realtime.ts`).
+Verbinden noch einmal frisch nach (`src/lib/realtime.ts`). Zweiter Lauf mit 5 s Anlaufzeit: keine Fehler,
+Zeitplan-Änderung bei allen 60 nach 0,42 s.
 
 **Abbruch-Tests** (im Browser, Dev-Modus, `window.__dsb` ist der Supabase-Client):
 `__dsb.realtime.disconnect()` → nach ca. 1 s wieder verbunden, Verpasstes nachgeladen.
