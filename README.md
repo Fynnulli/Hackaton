@@ -18,7 +18,7 @@ liegen in Row Level Security und Postgres-Funktionen.
 | 5 | Galerie und Voting | fertig |
 | 6 | Admin-Seite und Testmodus | fertig |
 | 7 | Wrapped und Siegerehrung | fertig |
-| 8 | Härtung: Lasttest, Reconnect, mobil | offen |
+| 8 | Härtung: Lasttest, Reconnect, mobil | fertig |
 
 ## Setup
 
@@ -195,6 +195,38 @@ ein Link „Admin“. Alle Aktionen laufen über die Admin-RPCs, die Datenbank p
 ohne `WHERE` ab (`pg-safeupdate`). Auch bei der einen Event-Zeile deshalb `where true` bzw.
 `where id = …` schreiben. `tests/db/safeupdate.test.ts` prüft das für alle Funktionen.
 
+## Lasttest / Generalprobe
+
+```bash
+node --env-file=.env.local scripts/load-test.mjs --clients 60 --code TEST42
+```
+
+Simuliert N Teilnehmende mit dem öffentlichen Schlüssel: Beitritt, Teams zu dritt,
+Realtime-Abos, Enthüllung (alle fragen gleichzeitig nach dem Thema), parallele Abgaben,
+Durchsage, Abstimmen mit absichtlich 5 gleichzeitigen Stimmen pro Person, Wrapped. Der erste
+Client wird Admin (das Skript gibt den SQL-Befehl aus und wartet). **Verändert das Event**,
+nur gegen Testdaten laufen lassen; den Aufräum-Befehl gibt das Skript am Ende aus.
+Voraussetzung: Rate-Limit für anonyme Anmeldungen mindestens so hoch wie `--clients`.
+
+Ergebnis mit 60 Clients (17.11.2026, Free-Projekt, ein Rechner):
+
+| Messung | p50 | p95 |
+| --- | --- | --- |
+| Anmeldung + Beitritt | 0,1 s + 0,1 s | 0,4 s + 0,5 s |
+| Thema nach dem Start bei allen da | 0,43 s | 0,44 s |
+| Realtime: Durchsage / Phase / Folie bei allen 60 | 0,2 / 0,65 / 0,64 s | 0,24 / 0,66 / 0,65 s |
+| Stimme (300 gleichzeitige Anfragen) | 1,3 s | 1,6 s |
+
+Stimmenlimit gehalten (180 neue Stimmen bei 60 Personen), Geheimhaltung gehalten (Thema vor
+dem Start und Twist vor `twist_at` nicht lesbar). Befund: Direkt nach dem Verbinden stellt
+Realtime unter Last noch nicht alle Änderungen zu; die App lädt deshalb 3 Sekunden nach dem
+Verbinden noch einmal frisch nach (`src/lib/realtime.ts`).
+
+**Abbruch-Tests** (im Browser, Dev-Modus, `window.__dsb` ist der Supabase-Client):
+`__dsb.realtime.disconnect()` → nach ca. 1 s wieder verbunden, Verpasstes nachgeladen.
+Realtime dauerhaft blockiert → das Polling (15 s) hält den Stand aktuell; sobald Realtime
+wieder geht, verbindet der Backoff (1, 2, 5, 10 s) von selbst neu.
+
 ## Checkliste für den Eventabend
 
 Wird mit jeder Bauphase ergänzt.
@@ -210,6 +242,7 @@ Wird mit jeder Bauphase ergänzt.
 - [ ] Admin-Konto ist gesetzt und auf einem zweiten Gerät per persönlichem Link erreichbar
 - [ ] Einmal mit einem privaten Browserfenster beitreten, Team gründen, wieder löschen
 - [ ] Einen Testlauf über den Testmodus auf `/admin` durchspielen, danach Testdaten löschen
+- [ ] Optional: Generalprobe mit `scripts/load-test.mjs` (siehe oben), danach aufräumen
 
 **Eine Stunde vorher**
 

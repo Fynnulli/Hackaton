@@ -6,6 +6,11 @@ import { getSupabase } from "./supabase";
 
 const DEBOUNCE_MS = 250;
 const RECONNECT_DELAYS_MS = [1_000, 2_000, 5_000, 10_000];
+/**
+ * Lasttest (60 Clients): Direkt nach SUBSCRIBED stellt Supabase unter Last noch nicht alle
+ * Aenderungen zu. Deshalb wird nach dieser Anlaufzeit ein zweites Mal frisch geladen.
+ */
+const WARMUP_RELOAD_MS = 3_000;
 
 /**
  * Realtime als Ausloeser: Jede Aenderung an einer der Tabellen ruft `onChange` auf
@@ -34,6 +39,7 @@ export function useRealtimeReload(
     let attempt = 0;
     let debounce = 0;
     let retry = 0;
+    let warmup = 0;
 
     const fire = () => {
       window.clearTimeout(debounce);
@@ -53,6 +59,8 @@ export function useRealtimeReload(
           attempt = 0;
           setLive(true);
           fire();
+          window.clearTimeout(warmup);
+          warmup = window.setTimeout(() => callback.current(), WARMUP_RELOAD_MS);
         } else if (state === "CHANNEL_ERROR" || state === "TIMED_OUT" || state === "CLOSED") {
           setLive(false);
           channel = null;
@@ -70,6 +78,7 @@ export function useRealtimeReload(
       disposed = true;
       window.clearTimeout(debounce);
       window.clearTimeout(retry);
+      window.clearTimeout(warmup);
       if (channel) void sb.removeChannel(channel);
       setLive(false);
     };

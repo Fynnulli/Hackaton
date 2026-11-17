@@ -177,6 +177,11 @@ await Promise.all(
   ),
 );
 log(`Realtime verbunden: ${metrics.get("realtime.subscribe")?.length ?? 0}/${joined.length}`);
+// Befund aus dem ersten 60er-Lauf: Direkt nach SUBSCRIBED kommen unter Last noch nicht alle
+// Aenderungen an. Die App laedt deshalb kurz nach dem Verbinden noch einmal nach; hier
+// warten wir die Anlaufzeit ab, damit die Latenzmessungen danach aussagekraeftig sind.
+const SETTLE_MS = Number(args["settle-ms"] ?? 5000);
+await sleep(SETTLE_MS);
 
 /** Wie viele Clients haben nach `since` eine Realtime-Nachricht bekommen, und wie schnell. */
 async function realtimeFanout(kind, since, label) {
