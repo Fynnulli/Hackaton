@@ -20,9 +20,9 @@ als Diagramme)
 - **Datenbank ist zurückgesetzt:** ein Event mit Code `TEST42` in der Lobby ohne Startzeit,
   Platzhalter-Stufen, ein Teilnehmer „Fynn Ulrich“ (Admin), keine Teams, Abgaben, Stimmen.
   Im Storage liegt noch eine verwaiste Test-Screenshot-Datei (harmlos, im Dashboard löschbar).
-- **Material-Dateien pro Stufe** (Migration `20261120090000_material.sql`): Code und Tests
-  sind fertig, die Migration muss noch auf das Supabase-Projekt angewendet werden (legt den
-  privaten Bucket `material` und die Lese-Policy an).
+- **Material-Dateien pro Stufe** (Migration `20261120090000_material.sql`, 20.11.2026):
+  eingespielt und geprüft (privater Bucket `material`, Policy `material_select`, `anon` ohne
+  Zugriff). Es fehlen nur noch die Dateien selbst (Abschnitt „Vom Test zum echten Abend“).
 - **Was vor dem echten Abend fehlt:** echtes Event mit Code, Zeiten und Thema einrichten
   (Abschnitt „Vom Test zum echten Abend“), Checkliste unten abarbeiten.
 
@@ -34,8 +34,10 @@ als Diagramme)
   dem Laden der Sitzung rendern, sonst bricht der Prerender (`Date.now()`-Fehler).
 - Supabase lehnt bei API-Aufrufen `UPDATE`/`DELETE` ohne `WHERE` ab (`pg-safeupdate`); die
   lokalen Tests sehen das nicht, `tests/db/safeupdate.test.ts` prüft es.
-- Neue Migrationen werden direkt auf das Projekt angewendet (Supabase-MCP oder SQL-Editor).
-  Der Dateiname in `supabase/migrations/` muss der dort vergebenen Version entsprechen.
+- Die Supabase-GitHub-Integration spielt neue Dateien aus `supabase/migrations/` beim Push
+  auf `main` automatisch ein. Nicht zusätzlich im SQL-Editor ausführen, sonst bricht der
+  zweite Lauf ab (z. B. „function … already exists“). Erst lokal mit `npm test` prüfen,
+  dann pushen: Eine fehlerhafte Migration landet sonst direkt im Produktivprojekt.
   Neue Funktionen brauchen am Ende wieder `revoke`/`grant` (siehe unten).
 - Das echte Thema gehört nie ins Repository und nicht in einen Chat.
 
@@ -83,10 +85,10 @@ nirgends gebraucht und gehört nicht in dieses Projekt.
 
 ### Supabase einrichten
 
-1. **Migrationen einspielen** (für das bestehende Projekt erledigt, außer
-   `20261120090000_material.sql`). Die Dateien in
-   `supabase/migrations/` der Reihe nach im SQL-Editor ausführen oder per Supabase-CLI/MCP
-   anwenden. Eine GitHub-Integration ist nicht eingerichtet. `supabase/config.toml` setzt nur
+1. **Migrationen einspielen** (für das bestehende Projekt erledigt). Neue Migrationen spielt
+   die Supabase-GitHub-Integration beim Push auf `main` automatisch ein. Für ein neues
+   Projekt ohne Integration: die Dateien in `supabase/migrations/` der Reihe nach im
+   SQL-Editor ausführen oder per Supabase-CLI/MCP anwenden. `supabase/config.toml` setzt nur
    `enable_anonymous_sign_ins = true` für lokale Entwicklung.
 2. **Anonyme Anmeldung aktivieren:** *Authentication → Sign In / Providers → Allow anonymous
    sign-ins*. Ohne diesen Schalter kann niemand beitreten.
