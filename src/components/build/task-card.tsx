@@ -11,11 +11,14 @@ export function TaskCard({
   stages,
   twistAt,
   twistJustRevealed,
+  preview = false,
 }: {
   stages: Stage[];
   twistAt: string | null;
   /** Der Twist kam gerade live dazu (nicht beim Laden schon da): mit Auftritt zeigen. */
   twistJustRevealed: boolean;
+  /** Admin-Vorschau: ohne Material-Abruf. */
+  preview?: boolean;
 }) {
   const topic = stages.find((s) => s.stage_no === 1);
   const visible = stages.filter((s) => s.stage_no <= 2);
@@ -32,7 +35,12 @@ export function TaskCard({
 
       <div className="grid gap-4 md:grid-cols-2">
         {visible.map((s) => (
-          <StageCard key={s.stage_no} stage={s} hideTitle={s.stage_no === 1} />
+          <StageCard
+            key={s.stage_no}
+            stage={s}
+            hideTitle={s.stage_no === 1}
+            materials={!preview}
+          />
         ))}
       </div>
 
@@ -51,6 +59,7 @@ export function TaskCard({
           >
             <StageCard
               stage={twist}
+              materials={!preview}
               className={`border-neon/60 shadow-[0_0_60px_-20px_var(--color-neon)] ${twistJustRevealed ? "twist-flash" : ""}`}
             />
           </motion.div>

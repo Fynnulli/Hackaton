@@ -22,6 +22,7 @@ import {
   SubmissionsSection,
   WrappedSection,
 } from "./content-sections";
+import { PreviewSection } from "./preview-section";
 
 export function AdminPage() {
   const { status, participant } = useSession();
@@ -87,6 +88,8 @@ function AdminScreen() {
             <TestModeSection refresh={refreshAll} />
           </div>
         </div>
+
+        <PreviewSection />
       </main>
     </div>
   );

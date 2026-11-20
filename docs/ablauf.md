@@ -31,7 +31,8 @@ flowchart TD
     subgraph Vortag["Am Vortag"]
         B1[Testdaten löschen] --> B2[Event umstellen:<br/>Code + Zeiten]
         B2 --> B3[Thema und Twist<br/>im SQL-Editor eintragen]
-        B3 --> B4[Selbst beitreten,<br/>per SQL zum Admin machen]
+        B3 --> B3b[Optional: Material hochladen<br/>Bucket material, Ordner 1/ 2/ 3/]
+        B3b --> B4[Selbst beitreten,<br/>per SQL zum Admin machen]
         B4 --> B5[Admin-Link auf zweitem<br/>Gerät sichern]
         B5 --> B6[Optional: Generalprobe<br/>mit Testmodus oder Lasttest]
     end
@@ -52,7 +53,13 @@ Das echte Event stellst du im SQL-Editor um: Es gibt immer genau ein Event, es w
 neu angelegt. Den geprüften SQL-Block (Testdaten löschen, Event umstellen, Thema eintragen)
 findest du in der [README unter „Vom Test zum echten Abend“](../README.md#vom-test-zum-echten-abend).
 
-Der **Titel von Stufe 1 ist das Thema**, das bei der Enthüllung groß erscheint.
+Der **Titel von Stufe 1 ist das Thema**, das bei der Enthüllung groß erscheint. Wie Titel
+und Texte wirken, zeigt `/admin` unter „Vorschau“, ohne etwas zu speichern.
+
+**Material** (PDF, CSV, ZIP bis 50 MB) lädst du im Supabase-Dashboard in den privaten Bucket
+`material`, Ordner = Stufennummer (`1/briefing.pdf`, `3/neue-daten.csv`). Die Dateien
+erscheinen als Download-Knöpfe in der Stufenkarte, aber erst mit ihrer Stufe: Stufe 1 und 2
+zum Start, Stufe 3 mit dem Twist. Vorher sind sie für niemanden abrufbar.
 
 ---
 
@@ -115,6 +122,7 @@ Was in welcher Phase erlaubt ist, prüft **die Datenbank**, nicht die Oberfläch
 | Team verlassen | ✓ | – | – | – | – |
 | Thema lesen | – | ab `starts_at` | ✓ | ✓ | ✓ |
 | Twist lesen | – | ab `twist_at` | ✓ | ✓ | ✓ |
+| Material laden | – | mit seiner Stufe | ✓ | ✓ | ✓ |
 | Abgeben / ändern | – | bis `build_ends_at` | – | – | – |
 | Fremde Abgaben sehen | – | – | ✓ | ✓ | ✓ |
 | Abstimmen (mit Team) | – | – | ✓ | – | – |
@@ -221,7 +229,7 @@ flowchart LR
         Tables[("Postgres-Tabellen<br/>nur lesen, per RLS begrenzt")]
         RPC["RPC-Funktionen<br/>alle Änderungen + Prüfungen"]
         RT["Realtime<br/>event, participant,<br/>announcement"]
-        Store["Storage<br/>Screenshots"]
+        Store["Storage<br/>Screenshots, Material"]
     end
 
     Vercel -->|einmal beim Laden| UI

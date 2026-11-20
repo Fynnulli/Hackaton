@@ -3,6 +3,7 @@
 import { useReducedMotion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import type { Stage } from "@/lib/types";
+import { LinkedText, StageMaterials } from "../stage/stage-materials";
 
 /**
  * Die Enthuellung als reine Funktion der verstrichenen Zeit: Jeder Frame wird aus
@@ -55,9 +56,11 @@ interface RevealProps {
   stages: Stage[];
   /** Wird einmal aufgerufen, wenn die Animation durch ist und das Thema steht. */
   onDone?: () => void;
+  /** Admin-Vorschau: als Ausschnitt statt als Seite, ohne Material-Abruf. */
+  preview?: boolean;
 }
 
-export function Reveal({ durationMs, getElapsed, stages, onDone }: RevealProps) {
+export function Reveal({ durationMs, getElapsed, stages, onDone, preview = false }: RevealProps) {
   const reduced = useReducedMotion();
   const elapsed = useElapsed(getElapsed);
   const topic = stages.find((s) => s.stage_no === 1) ?? null;
@@ -76,7 +79,8 @@ export function Reveal({ durationMs, getElapsed, stages, onDone }: RevealProps) 
     }
   }, [done, onDone]);
 
-  if (reduced) return <ReducedReveal f={f} topic={topic} cards={cards} />;
+  if (reduced) return <ReducedReveal f={f} topic={topic} cards={cards} preview={preview} />;
+  const Root = preview ? "div" : "main";
 
   const title = topic?.title ?? "";
   const len = topic ? title.length : PLACEHOLDER_LEN;
@@ -97,7 +101,7 @@ export function Reveal({ durationMs, getElapsed, stages, onDone }: RevealProps) 
   const gridScale = 1 + 0.6 * (1 - easeOut(seg(f, 0, 0.5)));
 
   return (
-    <main
+    <Root
       className="relative flex flex-1 flex-col items-center justify-center overflow-hidden px-5 py-16 sm:px-8"
       aria-live="polite"
     >
@@ -196,20 +200,32 @@ export function Reveal({ durationMs, getElapsed, stages, onDone }: RevealProps) 
                 key={s.stage_no}
                 stage={s}
                 hideTitle={s.stage_no === 1}
+                materials={!preview}
                 style={{ opacity: t, transform: `translateY(${(1 - t) * 40}px)` }}
               />
             );
           })}
         </div>
       </div>
-    </main>
+    </Root>
   );
 }
 
-function ReducedReveal({ f, topic, cards }: { f: number; topic: Stage | null; cards: Stage[] }) {
+function ReducedReveal({
+  f,
+  topic,
+  cards,
+  preview,
+}: {
+  f: number;
+  topic: Stage | null;
+  cards: Stage[];
+  preview: boolean;
+}) {
   const show = topic !== null && f >= 0.5;
+  const Root = preview ? "div" : "main";
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-8 px-5 py-16 text-center sm:px-8">
+    <Root className="flex flex-1 flex-col items-center justify-center gap-8 px-5 py-16 text-center sm:px-8">
       {show ? (
         <>
           <p className="label text-neon">Das Thema</p>
@@ -218,14 +234,14 @@ function ReducedReveal({ f, topic, cards }: { f: number; topic: Stage | null; ca
           </h1>
           <div className="grid w-full max-w-6xl gap-4 text-left sm:grid-cols-2">
             {cards.map((s) => (
-              <StageCard key={s.stage_no} stage={s} />
+              <StageCard key={s.stage_no} stage={s} materials={!preview} />
             ))}
           </div>
         </>
       ) : (
         <p className="display text-6xl">Gleich…</p>
       )}
-    </main>
+    </Root>
   );
 }
 
@@ -234,10 +250,13 @@ export function StageCard({
   style,
   className,
   hideTitle = false,
+  materials = true,
 }: {
   stage: Stage;
   /** Bei Stufe 1 steht der Titel schon als Thema darueber. */
   hideTitle?: boolean;
+  /** Dateien aus dem Bucket `material` zeigen (aus in der Admin-Vorschau). */
+  materials?: boolean;
   style?: React.CSSProperties;
   className?: string;
 }) {
@@ -251,8 +270,9 @@ export function StageCard({
         <h3 className="mt-3 text-2xl font-bold tracking-tight">{stage.title}</h3>
       )}
       <p className={`mt-3 whitespace-pre-line text-lg ${hideTitle ? "text-paper" : "text-muted"}`}>
-        {stage.body}
+        <LinkedText text={stage.body} />
       </p>
+      {materials ? <StageMaterials stageNo={stage.stage_no} /> : null}
     </article>
   );
 }

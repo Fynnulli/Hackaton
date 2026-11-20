@@ -20,6 +20,9 @@ als Diagramme)
 - **Datenbank ist zurückgesetzt:** ein Event mit Code `TEST42` in der Lobby ohne Startzeit,
   Platzhalter-Stufen, ein Teilnehmer „Fynn Ulrich“ (Admin), keine Teams, Abgaben, Stimmen.
   Im Storage liegt noch eine verwaiste Test-Screenshot-Datei (harmlos, im Dashboard löschbar).
+- **Material-Dateien pro Stufe** (Migration `20261120090000_material.sql`): Code und Tests
+  sind fertig, die Migration muss noch auf das Supabase-Projekt angewendet werden (legt den
+  privaten Bucket `material` und die Lese-Policy an).
 - **Was vor dem echten Abend fehlt:** echtes Event mit Code, Zeiten und Thema einrichten
   (Abschnitt „Vom Test zum echten Abend“), Checkliste unten abarbeiten.
 
@@ -80,7 +83,8 @@ nirgends gebraucht und gehört nicht in dieses Projekt.
 
 ### Supabase einrichten
 
-1. **Migrationen einspielen** (für das bestehende Projekt erledigt). Die Dateien in
+1. **Migrationen einspielen** (für das bestehende Projekt erledigt, außer
+   `20261120090000_material.sql`). Die Dateien in
    `supabase/migrations/` der Reihe nach im SQL-Editor ausführen oder per Supabase-CLI/MCP
    anwenden. Eine GitHub-Integration ist nicht eingerichtet. `supabase/config.toml` setzt nur
    `enable_anonymous_sign_ins = true` für lokale Entwicklung.
@@ -129,6 +133,21 @@ insert into public.challenge_stage (stage_no, title, body) values
   (3, 'Titel Twist',    'Der Twist');
 ```
 
+**4. Material hochladen** (optional): *Storage → Bucket `material`* (privat, bis 50 MB je
+Datei, PDF/CSV/ZIP). Pro Stufe einen Ordner mit der Stufennummer anlegen und die Dateien
+hineinladen, z. B. `1/briefing.pdf`, `2/daten.csv`, `3/neue-daten.csv`. Teilnehmende sehen
+die Dateien als Download-Knöpfe in der Stufenkarte, aber erst ab der Freigabe der Stufe
+(Stufe 1 und 2 ab `starts_at`, Stufe 3 mit dem Twist). Vorher kann niemand sie auflisten
+oder laden, auch Admins nicht; hochladen geht nur über das Dashboard. Leerer Ordner = keine
+Anzeige. Alte Testdateien im Dashboard löschen. Dateinamen sind für alle sichtbar, also nichts Verräterisches hineinschreiben.
+Prüfen: im Testmodus auf `/admin` einen kurzen Lauf starten und die Downloads ausprobieren
+(die Zeiten danach wieder auf den echten Abend setzen).
+
+Titel und Texte lassen sich vorab auf `/admin` unter „Vorschau“ eintippen und so ansehen,
+wie Enthüllung und Aufgabenkarte sie zeigen; dort wird nichts gespeichert. Links im
+Stufentext (`https://…` oder `www.…`) werden automatisch klickbar und öffnen in einem
+neuen Tab.
+
 Danach: Event-Daten auf `/admin` unter „Stand“ prüfen. Das Thema ist bis `starts_at` für
 niemanden lesbar, auch nicht für Admins; zum Prüfen also nur im SQL-Editor ansehen.
 Einladungslink: `https://hackaton-eta-pied.vercel.app/?code=DEINCODE`.
@@ -166,11 +185,14 @@ nötig) und prüfen die kritischen Regeln so, wie ein angemeldeter Client sie er
 - **Stimmenlimit** (`tests/db/voting.test.ts`): drei Stimmen, eine pro Abgabe, keine fürs
   eigene Team, Stände erst im Wrapped.
 - **Beitritt, Teams, Wiedereinstieg** (`tests/db/join.test.ts`).
+- **Material** (`tests/db/material.test.ts`): Dateien in `1/` vor `starts_at` weder
+  auflistbar noch ladbar (auch nicht für Admins), `3/` erst ab `twist_at`, kein Upload,
+  Ändern oder Löschen durch Clients.
 - **Ticker, Admin-Funktionen** (`tests/db/announcement.test.ts`, `tests/db/admin.test.ts`).
 - **pg-safeupdate** (`tests/db/safeupdate.test.ts`): keine Funktion mit `UPDATE`/`DELETE`
   ohne `WHERE`.
 - **Reine Logik** (`tests/unit/`): Serverzeit-Versatz, Bildschirmwahl, Timerfarben,
-  Formularprüfung, Galerie-Mischung, Wrapped-Auswertung.
+  Formularprüfung, Galerie-Mischung, Wrapped-Auswertung, Links im Stufentext.
 
 Weitere Prüfungen: `npm run typecheck`, `npm run lint`, `npm run build`.
 
@@ -189,6 +211,11 @@ Gleichzeitige Zugriffe und das Zusammenspiel mit dem echten Projekt prüft der L
 - **Geheimhaltung.** `challenge_stage.reveal_at` wird per Trigger aus `starts_at` (Stufe 1
   und 2) bzw. `twist_at` (Stufe 3) abgeleitet. Die RLS-Policy gibt eine Stufe erst frei, wenn
   `reveal_at` erreicht ist. Der Thementext existiert nur in der Datenbank.
+- **Material.** Privater Bucket `material`, Ordner = Stufennummer. Die Policy
+  `material_select` gibt eine Datei erst frei, wenn die Stufe mit dieser Nummer freigegeben
+  ist (`is_stage_revealed()`, dieselbe Regel wie `challenge_stage`). Die Stufenkarte listet
+  den Ordner, sobald die Stufe da ist, und lädt per Signed URL (60 s gültig); beim Twist
+  erscheinen die Dateien von Stufe 3 mit dem Auftritt. Es gibt keine Schreib-Policy.
 - **Sitzung.** Supabase Anonymous Sign-in, gespeichert im Browser. Der persönliche Link
   (`/r#<token>`) überträgt die Teilnahme samt Team und Stimmen auf ein anderes Gerät; der
   Token steht im URL-Fragment und erreicht damit keinen Server-Log.
@@ -254,6 +281,8 @@ ein Link „Admin“. Alle Aktionen laufen über die Admin-RPCs, die Datenbank p
 - **Wrapped:** Folien vor und zurück, alle Bildschirme folgen synchron.
 - **Testmodus:** Lobby, Start in 30 Sekunden, kurze Bauzeit, Twist zur Hälfte. Teilnehmer,
   Teams, Abgaben und Stimmen bleiben erhalten.
+- **Vorschau:** Titel und Text der drei Stufen eintippen und als Enthüllung (mit
+  Abspielen) oder Aufgabenkarte (mit Twist) ansehen. Nur lokal, nichts wird gespeichert.
 
 **Wichtig für neue Migrationen:** Supabase lehnt bei API-Aufrufen jedes `UPDATE`/`DELETE`
 ohne `WHERE` ab (`pg-safeupdate`). Auch bei der einen Event-Zeile deshalb `where true` bzw.
@@ -305,6 +334,8 @@ Wird mit jeder Bauphase ergänzt.
 - [ ] Testdaten entfernt, Event mit richtigem Code, Zeiten und Thema umgestellt (Abschnitt
       „Vom Test zum echten Abend“)
 - [ ] Thema und Twist stehen in `challenge_stage` (und nirgends sonst)
+- [ ] Material hochgeladen und im Testmodus geprüft (Bucket `material`, Ordner `1/`, `2/`,
+      `3/`; Downloads erscheinen erst mit ihrer Stufe)
 - [ ] Admin-Konto ist gesetzt und auf einem zweiten Gerät per persönlichem Link erreichbar
 - [ ] Einmal mit einem privaten Browserfenster beitreten, Team gründen, wieder löschen
 - [ ] Einen Testlauf über den Testmodus auf `/admin` durchspielen, danach Testdaten löschen
